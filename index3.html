@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Offline AI Model</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+  <h1>Offline AI Model</h1>
+  <button onclick="runInference()">Run Inference</button>
+  <div id="output"></div>
+
+  <script>
+    async function loadModel() {
+      const model = await tf.loadGraphModel('model/model.json');
+      console.log('Model loaded');
+      return model;
+    }
+
+    async function runInference() {
+      const model = await loadModel();
+      const inputData = tf.tensor([1.0, 2.0, 3.0, 4.0]);
+      const prediction = model.predict(inputData);
+      prediction.print();
+
+      document.getElementById('output').innerText = `Prediction: ${prediction.dataSync()}`;
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(registration => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      }).catch(error => {
+        console.log('Service Worker registration failed:', error);
+      });
+    }
+  </script>
+
+  <script>
+    // Service Worker code
+    const CACHE_NAME = 'offline-cache';
+    const ASSETS = [
+      '/',
+      '/index.html',
+      '/model/model.json',
+      '/model/weights.bin',
+      'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs'
+    ];
+
+    self.addEventListener('install', event => {
+      event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+          return cache.addAll(ASSETS);
+        })
+      );
+    });
+
+    self.addEventListener('fetch', event => {
+      event.respondWith(
+        caches.match(event.request).then(response => {
+          return response || fetch(event.request);
+        })
+      );
+    });
+  </script>
+</body>
+</html>
